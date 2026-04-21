@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
   const { data: session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Landing page has its own dedicated navigation.
+  if (pathname === "/") return null;
 
   const role = (session?.user as any)?.role;
   const isParent = role === "parent";
