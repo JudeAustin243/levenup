@@ -25,12 +25,19 @@ export default function SignupPage() {
         body: JSON.stringify({ name, email, password }),
       });
 
+<<<<<<< HEAD
       const data = (await res.json().catch(() => null)) as
         | { error?: string }
         | null;
 
       if (!res.ok) {
         setError(data?.error ?? `Unable to create account (HTTP ${res.status})`);
+=======
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Unable to create account");
+>>>>>>> origin/dev
         return;
       }
 

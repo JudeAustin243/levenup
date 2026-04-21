@@ -6,6 +6,7 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
+<<<<<<< HEAD
   let config: pg.PoolConfig;
 
   if (connectionString) {
@@ -23,6 +24,20 @@ function createPrismaClient() {
   }
 
   const adapter = new PrismaPg(config);
+=======
+
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is not set");
+  }
+
+  const parsedUrl = new URL(connectionString);
+  const adapter = new PrismaPg({
+    connectionString,
+    // Some local Postgres setups intentionally use an empty password.
+    // Passing an explicit string avoids pg's SASL error when password is omitted.
+    password: parsedUrl.password || "",
+  });
+>>>>>>> origin/dev
 
   return new PrismaClient({ adapter });
 }
