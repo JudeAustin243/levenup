@@ -44,9 +44,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Account created successfully" });
   } catch (err) {
     console.error("Signup error:", err);
+
+    const message = err instanceof Error ? err.message : "Something went wrong";
+    const lower = message.toLowerCase();
+    const dbConnectionError =
+      lower.includes("sasl") ||
+      lower.includes("connect") ||
+      lower.includes("database") ||
+      lower.includes("econnrefused");
+
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Something went wrong" },
-      { status: 500 }
+      {
+        error: dbConnectionError
+          ? "We couldn't connect to the database. Please check your database settings and try again."
+          : message,
+      },
+      { status: dbConnectionError ? 503 : 500 }
     );
   }
 }
