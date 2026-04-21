@@ -2,9 +2,11 @@
 
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,25 +18,46 @@ export default function SignupPage() {
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    });
+    try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-    const data = await res.json();
+      let data: { error?: string } | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
 
-    if (!res.ok) {
-      setError(data.error);
+      if (!res.ok) {
+        setError(data?.error ?? `Unable to create account (HTTP ${res.status})`);
+        return;
+      }
+
+      const signInResult = await signIn("parent-login", {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: "/onboarding",
+      });
+
+      if (!signInResult || signInResult.error) {
+        setError(
+          "Your account was created, but automatic sign in failed. Please log in manually."
+        );
+        return;
+      }
+
+      router.push(signInResult.url ?? "/onboarding");
+      router.refresh();
+    } catch {
+      setError("Something went wrong while creating your account. Please try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    await signIn("parent-login", {
-      email,
-      password,
-      callbackUrl: "/onboarding",
-    });
   }
 
   return (
