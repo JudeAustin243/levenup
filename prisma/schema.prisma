@@ -1,0 +1,290 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ──── Enums ────
+
+enum UserRole {
+  parent
+  student
+}
+
+enum SessionType {
+  diagnostic
+  practice
+  mock
+  review
+}
+
+enum QuestionType {
+  mcq
+  typed
+}
+
+enum Rarity {
+  Common
+  Rare
+  Legendary
+  Mythical
+}
+
+enum AvatarLayer {
+  background
+  body
+  shirt
+  pants
+  shoes
+  hat
+  accessory
+  effect
+}
+
+enum PackTier {
+  Bronze
+  Silver
+  Gold
+}
+
+// ──── Users & Children ────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(parent)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  children     Child[]
+}
+
+model Child {
+  id             String              @id @default(cuid())
+  parentId       String
+  name           String
+  age            Int?
+  pinHash        String
+  examDate       DateTime?
+  examBoard      String?
+  avatar         String?
+  coins          Int                 @default(0)
+  onboardingDone Boolean             @default(false)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  parent         User                @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  sessions       Session[]
+  answers        Answer[]
+  hexagonProfiles HexagonProfile[]
+  schedules      Schedule[]
+  aiReports      AIReport[]
+  difficulties   ChildTopicDifficulty[]
+  ownedItems     OwnedItem[]
+  packPurchases  PackPurchase[]
+
+  @@index([parentId])
+}
+
+// ──── Content ────
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  icon        String
+  colour      String   @default("#6366f1")
+  topics      Topic[]
+  sessions    Session[]
+}
+
+model Topic {
+  id           String                @id @default(cuid())
+  name         String
+  subjectId    String
+  order        Int                   @default(0)
+  subject      Subject               @relation(fields: [subjectId], references: [id])
+  questions    Question[]
+  sessions     Session[]
+  difficulties ChildTopicDifficulty[]
+
+  @@index([subjectId])
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  topicId       String
+  subtopic      String?
+  type          QuestionType @default(mcq)
+  questionText  String
+  bodyJson      Json?
+  options       Json
+  correctAnswer Int
+  correctAnswers Json?        // For multi-select questions (array of correct answer indices)
+  solutionJson  Json?
+  explanation   String
+  difficulty    Int          @default(3)
+  tags          String[]     @default([])
+  ageRange      String?
+  examBoard     String?
+  questionType  String?
+  topic         Topic        @relation(fields: [topicId], references: [id])
+  answers       Answer[]
+
+  @@index([topicId])
+  @@index([difficulty])
+  @@index([examBoard])
+  @@index([ageRange])
+}
+
+// ──── Sessions & Answers ────
+
+model Session {
+  id                 String      @id @default(cuid())
+  childId            String
+  sessionType        SessionType
+  subjectId          String?
+  topicId            String?
+  questionsAttempted Int         @default(0)
+  questionsCorrect   Int         @default(0)
+  startedAt          DateTime    @default(now())
+  endedAt            DateTime?
+  timedMode          Boolean     @default(false)
+  timeLimitSeconds   Int?
+  child              Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+  subject            Subject?    @relation(fields: [subjectId], references: [id])
+  topic              Topic?      @relation(fields: [topicId], references: [id])
+  answers            Answer[]
+
+  @@index([childId])
+  @@index([childId, sessionType])
+}
+
+model Answer {
+  id               String    @id @default(cuid())
+  sessionId        String
+  questionId       String
+  childId          String
+  selectedAnswer   Int?
+  selectedAnswers  Json?     // For multi-select questions (array of selected indices)
+  typedAnswer      String?
+  isCorrect        Boolean
+  timeTakenMs      Int?
+  difficultyAtTime Int?
+  flagged          Boolean   @default(false)
+  answeredAt       DateTime  @default(now())
+  sm2Interval      Float?
+  sm2Easiness      Float?
+  sm2Repetitions   Int?
+  sm2NextReview    DateTime?
+  session          Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question         Question  @relation(fields: [questionId], references: [id])
+  child            Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, questionId])
+  @@index([childId, sm2NextReview])
+  @@index([sessionId])
+}
+
+// ──── Adaptive Difficulty Tracking ────
+
+model ChildTopicDifficulty {
+  id                 String @id @default(cuid())
+  childId            String
+  topicId            String
+  currentLevel       Int    @default(3)
+  consecutiveCorrect Int    @default(0)
+  consecutiveWrong   Int    @default(0)
+  child              Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  topic              Topic  @relation(fields: [topicId], references: [id])
+
+  @@unique([childId, topicId])
+}
+
+// ──── Analytics ────
+
+model HexagonProfile {
+  id           String   @id @default(cuid())
+  childId      String
+  snapshotDate DateTime @default(now())
+  axisScores   Json
+  version      Int      @default(1)
+  child        Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, snapshotDate])
+}
+
+// ──── Schedule ────
+
+model Schedule {
+  id             String   @id @default(cuid())
+  childId        String
+  weekStartDate  DateTime
+  sessionsJson   Json
+  isAiGenerated  Boolean  @default(false)
+  lastModifiedBy String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  child          Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, weekStartDate])
+}
+
+// ──── AI Reports ────
+
+model AIReport {
+  id           String   @id @default(cuid())
+  childId      String
+  reportType   String
+  generatedAt  DateTime @default(now())
+  contentJson  Json
+  sentToParent Boolean  @default(false)
+  child        Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId])
+}
+
+// ──── Avatar Shop ────
+
+model AvatarItem {
+  id        String      @id @default(cuid())
+  name      String
+  rarity    Rarity
+  layer     AvatarLayer
+  imageUrl  String
+  coinValue Int
+  createdAt DateTime    @default(now())
+  owned     OwnedItem[]
+
+  @@index([rarity])
+  @@index([layer])
+}
+
+model OwnedItem {
+  id         String     @id @default(cuid())
+  childId    String
+  itemId     String
+  equipped   Boolean    @default(false)
+  acquiredAt DateTime   @default(now())
+  child      Child      @relation(fields: [childId], references: [id], onDelete: Cascade)
+  item       AvatarItem @relation(fields: [itemId], references: [id])
+
+  @@unique([childId, itemId])
+  @@index([childId])
+}
+
+model PackPurchase {
+  id        String   @id @default(cuid())
+  childId   String
+  packTier  PackTier
+  coinsCost Int
+  itemsJson Json
+  createdAt DateTime @default(now())
+  child     Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId])
+}

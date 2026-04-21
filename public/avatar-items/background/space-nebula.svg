@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a0533"/>
+      <stop offset="50%" stop-color="#4B0082"/>
+      <stop offset="100%" stop-color="#2d1b69"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="400" rx="20" fill="url(#bg)"/>
+  <text x="150" y="180" text-anchor="middle" font-size="80">&#127756;</text>
+  <text x="150" y="350" text-anchor="middle" font-family="Arial" font-size="20" font-weight="bold" fill="white">Space Nebula</text>
+</svg>
